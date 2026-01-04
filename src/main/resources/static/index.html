@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>GitHub Activity</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1 id="projName">Github-Activity</h1>
+  
+  <div class="box">
+    <div class="container">
+      <form id="userForm">
+        <div class="input-group">
+            <label for="username">Username</label> 
+            <input id="username" name="username" placeholder="Enter GitHub username" required />
+        </div>
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+
+    <div id="result" style="display:none;">
+      <div id="profile">
+        <img id="avatar" src="" alt="avatar" width="100" />
+        <div class="profile-info">
+            <h2 id="name"></h2>
+            <p id="login"></p>
+            <p>Total public repos: <span id="public_repos"></span></p>
+            <p>Total commits (approx): <span id="total_commits"></span></p>
+        </div>
+      </div>
+
+      <h3>Recent activity</h3>
+      <ul id="activityList"></ul>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('userForm');
+    const projNameHeading = document.getElementById('projName'); // Get the heading
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      if(!username) return;
+      
+      const submitButton = form.querySelector('button[type="submit"]');
+      submitButton.disabled = true;
+      submitButton.innerText = 'Loading...';
+
+      const res = await fetch(`/api/github/${username}`);
+      const data = await res.json();
+
+      submitButton.disabled = false;
+      submitButton.innerText = 'Submit';
+
+      if (res.ok) {
+        // --- KEY CHANGE: Hide the main heading when results are successful ---
+        projNameHeading.style.display = 'none'; 
+        
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('userForm').style.display = 'none'; 
+        
+        const profile = data.profile;
+        document.getElementById('avatar').src = profile.avatarUrl || profile.avatar_url;
+        document.getElementById('name').innerText = profile.name || 'No name';
+        document.getElementById('login').innerText = '@' + profile.login;
+        document.getElementById('public_repos').innerText = profile.publicRepos || profile.public_repos;
+        document.getElementById('total_commits').innerText = data.totalCommits ? data.totalCommits.toLocaleString() : 'N/A';
+
+        const list = document.getElementById('activityList');
+        list.innerHTML = '';
+        if (data.recent && data.recent.length > 0) {
+            for (const ev of data.recent) {
+              const li = document.createElement('li');
+              li.innerHTML = `
+                <div class="activity-item">
+                    <span class="activity-type">${ev.type.replace(/Event/g, '')}</span>
+                    <span class="activity-repo">${ev.repoName}</span>
+                    <span class="activity-summary">${ev.summary}</span>
+                    <em class="activity-date">(${new Date(ev.createdAt).toLocaleString()})</em>
+                </div>
+              `;
+              list.appendChild(li);
+            }
+        } else {
+            list.innerHTML = '<li>No recent public activity found.</li>';
+        }
+      } else {
+        alert(data.error || `Error fetching data for ${username}.`);
+        document.getElementById('userForm').style.display = 'flex';
+        document.getElementById('result').style.display = 'none';
+        projNameHeading.style.display = 'block'; // Show heading again on error
+      }
+    });
+  </script>
+</body>
+</html>
